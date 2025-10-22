@@ -2,4 +2,5 @@
     <string name="app_name">AC Doctor</string>
     <string name="no_devices">Нет подключённых устройств</string>
     <string name="scan">Сканировать</string>
+    <string name="connect">Connect</string>
 </resources>

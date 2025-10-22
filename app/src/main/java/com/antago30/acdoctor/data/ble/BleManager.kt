@@ -1,15 +1,17 @@
 package com.antago30.acdoctor.data.ble
 
-import android.annotation.SuppressLint
+import android.os.ParcelUuid
+import android.util.Log
 import com.antago30.acdoctor.BleApplication
 import com.polidea.rxandroidble2.RxBleDevice
+import com.polidea.rxandroidble2.RxBleDeviceServices
+import com.polidea.rxandroidble2.scan.ScanFilter
 import com.polidea.rxandroidble2.scan.ScanSettings
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
+import io.reactivex.schedulers.Schedulers
 import java.util.*
-import android.bluetooth.BluetoothGattService
-import android.bluetooth.BluetoothGattCharacteristic
-import com.polidea.rxandroidble2.RxBleDeviceServices
+import java.util.concurrent.ConcurrentHashMap
 
 class BleManager {
 
@@ -18,68 +20,59 @@ class BleManager {
     private val SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
     private val RX_CHAR_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
 
-    private val activeConnections = mutableMapOf<String, Disposable>()
+    private val activeConnections = ConcurrentHashMap<String, Disposable>()
 
-    @SuppressLint("MissingPermission")
-    fun scan(): Observable<RxBleDevice> {
+    fun scanForCompatibleDevices(): Observable<RxBleDevice> {
+        val tag = "BLE1"
+        Log.d(tag, "Starting BLE scan for service: $SERVICE_UUID")
+
+        val scanFilter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(SERVICE_UUID))
+            .build()
+
         return rxBleClient.scanBleDevices(
             ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                .build()
-        ).map { it.bleDevice }
+                .build(),
+            scanFilter
+        )
+            .doOnSubscribe { Log.d(tag, "BLE scan subscribed — scanning started") }
+            .doOnDispose { Log.d(tag, "BLE scan disposed — scanning stopped") }
+            .map { scanResult -> scanResult.bleDevice }
+            .distinct { it.macAddress }
+            .doOnNext { device ->
+                Log.d(tag, "Device emitted (within take limit): ${device.macAddress}")
+            }
     }
 
-    @SuppressLint("MissingPermission")
-    fun connect(bleDevice: RxBleDevice, onMessage: (ByteArray) -> Unit) {
-        val address = bleDevice.macAddress
-        if (activeConnections.containsKey(address)) return
+    fun connectToDeviceAsObservable(bleDevice: RxBleDevice): Observable<ByteArray> {
+        val mac = bleDevice.macAddress
 
-        val disposable = bleDevice.establishConnection(false)
+        return bleDevice.establishConnection(false)
+            //.timeout(12, TimeUnit.SECONDS)
+            .subscribeOn(Schedulers.io())
             .flatMap { connection ->
                 connection.discoverServices()
                     .toObservable()
-                    .flatMap { rxBleServices: RxBleDeviceServices ->
-                        val servicesList = rxBleServices.bluetoothGattServices
+                    .flatMap { servicesWrapper: RxBleDeviceServices ->
+                        val service = servicesWrapper.bluetoothGattServices
+                            .firstOrNull { it.uuid == SERVICE_UUID }
 
-                        var targetService: BluetoothGattService? = null
-                        for (i in 0 until servicesList.size) {
-                            val service = servicesList[i]
-                            if (service.uuid == SERVICE_UUID) {
-                                targetService = service
-                                break
-                            }
-                        }
+                        val char = service?.characteristics?.firstOrNull { it.uuid == RX_CHAR_UUID }
 
-                        if (targetService == null) {
-                            Observable.error(RuntimeException("Service not found"))
+                        if (service == null || char == null) {
+                            Observable.error(RuntimeException("Incompatible device: service/char missing"))
                         } else {
-                            var targetChar: BluetoothGattCharacteristic? = null
-                            for (j in 0 until targetService.characteristics.size) {
-                                val char = targetService.characteristics[j]
-                                if (char.uuid == RX_CHAR_UUID) {
-                                    targetChar = char
-                                    break
-                                }
-                            }
-
-                            if (targetChar == null) {
-                                Observable.error(RuntimeException("Char not found"))
-                            } else {
-                                connection.setupNotification(targetChar)
-                                    .flatMap { it }
-                            }
+                            connection.setupNotification(char).flatMap { it }
                         }
                     }
             }
-            .subscribe(
-                { data -> onMessage(data) },
-                { error ->
-                    activeConnections.remove(address)
-                    error.printStackTrace()
-                }
-            )
-
-        activeConnections[address] = disposable
+            .doOnSubscribe { disposable ->
+                activeConnections[mac] = disposable
+            }
+            .doFinally {
+                activeConnections.remove(mac)
+            }
     }
 
     fun disconnect(deviceAddress: String) {

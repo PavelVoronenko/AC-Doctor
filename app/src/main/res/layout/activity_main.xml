@@ -9,15 +9,16 @@
     android:padding="16dp">
 
     <Button
-        android:id="@+id/btnScan"
+        android:id="@+id/btnConnectBLE"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
         android:layout_marginBottom="32dp"
-        android:text="@string/scan"
+        android:text="@string/connect"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
@@ -28,7 +29,7 @@
         android:padding="16dp"
         android:text="@string/no_devices"
         android:textSize="18sp"
-        app:layout_constraintBottom_toTopOf="@+id/btnScan"
+        app:layout_constraintBottom_toTopOf="@+id/btnConnectBLE"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -37,16 +38,14 @@
         android:id="@+id/containerDevice1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
         android:layout_weight="1"
         android:gravity="center"
         android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnConnectBLE"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.25">
+        app:layout_constraintTop_toTopOf="parent">
 
         <View
             android:id="@+id/indicator1"
@@ -73,8 +72,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.65999997">
+        app:layout_constraintTop_toBottomOf="@+id/containerDevice1"
+        app:layout_constraintVertical_bias="0.01999998">
 
         <View
             android:id="@+id/indicator2"

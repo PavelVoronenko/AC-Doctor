@@ -13,11 +13,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     val connectedDevices = repository.connectedDevices
-
-    fun startScan(callback: (RxBleDevice) -> Unit) = repository.startScan(callback)
-    fun stopScan() = repository.stopScan()
-    fun connectToDevice(device: RxBleDevice) = repository.connectToDevice(device)
     fun disconnectFromDevice(deviceId: String) = repository.disconnectFromDevice(deviceId)
+    fun connectToAllCompatibleDevices() = repository.connectToAllCompatibleDevices(maxDevices = 5)
+
 
     override fun onCleared() {
         repository.clear()

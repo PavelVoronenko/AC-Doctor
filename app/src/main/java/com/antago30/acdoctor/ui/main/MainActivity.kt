@@ -3,23 +3,19 @@ package com.antago30.acdoctor.ui.main
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.antago30.acdoctor.R
 import com.antago30.acdoctor.domain.model.ConnectedDevice
-import com.polidea.rxandroidble2.RxBleDevice
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var viewModel: MainViewModel
-    private lateinit var btnScan: Button
+    private lateinit var btnConnectBle: Button
     private lateinit var tvStatus: TextView
     private lateinit var container1: LinearLayout
     private lateinit var container2: LinearLayout
@@ -28,15 +24,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var indicator1: View
     private lateinit var indicator2: View
 
-    private val devicesFound = mutableSetOf<RxBleDevice>()
-    private val handler = Handler(Looper.getMainLooper())
-    private var scanTimeoutRunnable: Runnable? = null
-
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.all { it.value }) {
-            startScanning()
+            viewModel.connectToAllCompatibleDevices()
         }
     }
 
@@ -47,11 +39,11 @@ class MainActivity : AppCompatActivity() {
         initViews()
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         observeDevices()
-        setupScanButton()
+        setupConnectButton()
     }
 
     private fun initViews() {
-        btnScan = findViewById(R.id.btnScan)
+        btnConnectBle = findViewById(R.id.btnConnectBLE)
         tvStatus = findViewById(R.id.tvStatus)
         container1 = findViewById(R.id.containerDevice1)
         container2 = findViewById(R.id.containerDevice2)
@@ -61,8 +53,8 @@ class MainActivity : AppCompatActivity() {
         indicator2 = findViewById(R.id.indicator2)
     }
 
-    private fun setupScanButton() {
-        btnScan.setOnClickListener {
+    private fun setupConnectButton() {
+        btnConnectBle.setOnClickListener {
             requestBlePermissions()
         }
     }
@@ -82,55 +74,9 @@ class MainActivity : AppCompatActivity() {
         }.toTypedArray()
 
         if (missing.isEmpty()) {
-            startScanning()
+            viewModel.connectToAllCompatibleDevices()
         } else {
             requestPermissionLauncher.launch(missing)
-        }
-    }
-
-    private fun startScanning() {
-        devicesFound.clear()
-        viewModel.startScan { device ->
-            devicesFound.add(device)
-        }
-
-        btnScan.text = "Сканирование..."
-        btnScan.isEnabled = false
-
-        scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
-        scanTimeoutRunnable = Runnable {
-            viewModel.stopScan()
-            if (!isFinishing && !isDestroyed) {
-                showDeviceSelectionDialog()
-            }
-        }
-        handler.postDelayed(scanTimeoutRunnable!!, 10000)
-    }
-
-    private fun showDeviceSelectionDialog() {
-        if (isFinishing || isDestroyed) return
-
-        if (devicesFound.isEmpty()) {
-            Toast.makeText(this, "Устройства не найдены", Toast.LENGTH_SHORT).show()
-            resetScanButton()
-            return
-        }
-
-        val deviceNames = devicesFound.map { it.name ?: it.macAddress }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Выберите устройство")
-            .setItems(deviceNames) { _, which ->
-                val device = devicesFound.elementAt(which)
-                viewModel.connectToDevice(device)
-            }
-            .setOnDismissListener { resetScanButton() }
-            .show()
-    }
-
-    private fun resetScanButton() {
-        if (!isFinishing && !isDestroyed) {
-            btnScan.text = getString(R.string.scan)
-            btnScan.isEnabled = true
         }
     }
 
@@ -170,8 +116,11 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    override fun onPause() {
+        super.onPause()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
     }
 }
