@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.all { it.value }) {
-            viewModel.connectToAllCompatibleDevices()
+            viewModel.disconnectAllAndConnect(maxDevices = 5)
         }
     }
 
@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         }.toTypedArray()
 
         if (missing.isEmpty()) {
-            viewModel.connectToAllCompatibleDevices()
+            viewModel.disconnectAllAndConnect(maxDevices = 5)
         } else {
             requestPermissionLauncher.launch(missing)
         }

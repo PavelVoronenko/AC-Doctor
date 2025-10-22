@@ -20,6 +20,7 @@ class BleRepository(private val bleManager: BleManager) {
     private val activeMap = ConcurrentHashMap<String, Boolean>()
 
     private val scanAndConnectDisposable = CompositeDisposable()
+    private val connectionDisposables = CompositeDisposable()
 
     fun connectToAllCompatibleDevices(maxDevices: Int = 5) {
         if ((connectedDevices.value?.size ?: 0) >= maxDevices) return
@@ -97,6 +98,27 @@ class BleRepository(private val bleManager: BleManager) {
         }
     }
 
+    // Метод для отключения всех устройств и нового подключения
+    fun disconnectAllAndConnect(maxDevices: Int = 5) {
+        disconnectAll()
+
+        _connectedDevices.postValue(emptyList())
+        messageMap.clear()
+        activeMap.clear()
+
+        scanAndConnectDisposable.clear()
+        connectToAllCompatibleDevices(maxDevices)
+    }
+
+    // Метод для отключения всех устройств
+    private fun disconnectAll() {
+        val currentDeviceIds = _connectedDevices.value?.map { it.deviceId } ?: emptyList()
+        currentDeviceIds.forEach { deviceId ->
+            bleManager.disconnect(deviceId)
+        }
+        connectionDisposables.clear()
+    }
+
     fun disconnectFromDevice(deviceId: String) {
         bleManager.disconnect(deviceId)
         messageMap.remove(deviceId)
@@ -117,5 +139,6 @@ class BleRepository(private val bleManager: BleManager) {
 
     fun clear() {
         scanAndConnectDisposable.clear()
+        connectionDisposables.clear()
     }
 }

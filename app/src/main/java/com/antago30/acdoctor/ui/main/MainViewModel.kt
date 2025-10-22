@@ -15,6 +15,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val connectedDevices = repository.connectedDevices
     fun disconnectFromDevice(deviceId: String) = repository.disconnectFromDevice(deviceId)
     fun connectToAllCompatibleDevices() = repository.connectToAllCompatibleDevices(maxDevices = 5)
+    fun disconnectAllAndConnect(maxDevices: Int = 5) = repository.disconnectAllAndConnect(maxDevices)
 
 
     override fun onCleared() {
