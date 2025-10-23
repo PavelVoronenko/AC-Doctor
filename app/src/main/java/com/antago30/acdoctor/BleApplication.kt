@@ -20,10 +20,8 @@ class BleApplication : Application() {
 
         RxJavaPlugins.setErrorHandler { throwable ->
             if (throwable is UndeliverableException) {
-                // Можно логировать или игнорировать
                 Log.w("RxJava", "Undeliverable exception", throwable)
             } else {
-                // Для других ошибок — можно отправить в Crashlytics и т.п.
                 Thread.currentThread().uncaughtExceptionHandler?.uncaughtException(Thread.currentThread(), throwable)
             }
         }

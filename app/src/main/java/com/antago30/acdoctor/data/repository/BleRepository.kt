@@ -13,14 +13,28 @@ import java.util.concurrent.TimeUnit
 
 class BleRepository(private val bleManager: BleManager) {
 
-    private val _connectedDevices = androidx.lifecycle.MutableLiveData<List<ConnectedDevice>>(emptyList())
+    private val _connectedDevices =
+        androidx.lifecycle.MutableLiveData<List<ConnectedDevice>>(emptyList())
     val connectedDevices = _connectedDevices
 
-    private val messageMap = ConcurrentHashMap<String, String>()
-    private val activeMap = ConcurrentHashMap<String, Boolean>()
+    private val deviceInfoMap = ConcurrentHashMap<String, ConnectedDevice>()
 
     private val scanAndConnectDisposable = CompositeDisposable()
-    private val connectionDisposables = CompositeDisposable()
+
+    fun disconnectAllAndConnect(maxDevices: Int = 5) {
+        disconnectAll()
+        _connectedDevices.postValue(emptyList())
+        deviceInfoMap.clear()
+        scanAndConnectDisposable.clear()
+        connectToAllCompatibleDevices(maxDevices)
+    }
+
+    private fun disconnectAll() {
+        val currentDeviceIds = _connectedDevices.value?.map { it.deviceId } ?: emptyList()
+        currentDeviceIds.forEach { deviceId ->
+            bleManager.disconnect(deviceId)
+        }
+    }
 
     fun connectToAllCompatibleDevices(maxDevices: Int = 5) {
         if ((connectedDevices.value?.size ?: 0) >= maxDevices) return
@@ -28,17 +42,21 @@ class BleRepository(private val bleManager: BleManager) {
         scanAndConnectDisposable.clear()
 
         val scanWithTimeout = bleManager.scanForCompatibleDevices()
-            .takeUntil(Observable.timer(2, TimeUnit.SECONDS, Schedulers.io()))
+            .takeUntil(Observable.timer(3, TimeUnit.SECONDS, Schedulers.io()))
 
         val job = scanWithTimeout
             .toList()
             .map { list -> list.take(maxDevices) }
             .onErrorReturn { emptyList() }
             .flatMapObservable { devices ->
-                Log.d("BLE1", "Scan finished. Found ${devices.size} devices: ${devices.map { it.macAddress }}")
+                Log.d(
+                    "BLE1",
+                    "Scan finished. Found ${devices.size} devices: ${devices.map { it.macAddress }}"
+                )
                 Observable.fromIterable(devices)
                     .filter { device ->
-                        val alreadyInList = connectedDevices.value?.any { it.deviceId == device.macAddress } == true
+                        val alreadyInList =
+                            connectedDevices.value?.any { it.deviceId == device.macAddress } == true
                         val alreadyConnected = bleManager.isConnected(device.macAddress)
                         !alreadyInList && !alreadyConnected
                     }
@@ -52,7 +70,12 @@ class BleRepository(private val bleManager: BleManager) {
                                     handleIncomingMessage(device, data)
                                 }
                                 .doOnError { error ->
-                                    Log.w("BLE1", "Failed to connect to ${device.macAddress}", error)
+                                    Log.w(
+                                        "BLE1",
+                                        "Failed to connect or receive data from ${device.macAddress}",
+                                        error
+                                    )
+                                    handleDeviceError(device, error)
                                 }
                                 .onErrorResumeNext(Observable.empty())
                         },
@@ -75,70 +98,64 @@ class BleRepository(private val bleManager: BleManager) {
         val mac = device.macAddress
         val message = data.toString(Charsets.UTF_8)
 
-        messageMap[mac] = message
-        activeMap[mac] = true
-        refreshDevices()
-
-        AndroidSchedulers.mainThread().scheduleDirect({
-            activeMap[mac] = false
-            refreshDevices()
-        }, 1000, TimeUnit.MILLISECONDS)
-
-        if (connectedDevices.value?.any { it.deviceId == mac } == false) {
-            val newDevice = ConnectedDevice(
+        var currentDevice = deviceInfoMap[mac]
+        if (currentDevice == null) {
+            currentDevice = ConnectedDevice(
                 deviceId = mac,
                 name = device.name ?: "Device $mac",
                 latestMessage = message,
-                isActive = true
+                isActive = true,
+                isError = false
             )
             val list = connectedDevices.value?.toMutableList() ?: mutableListOf()
-            list.add(newDevice)
+            list.add(currentDevice)
             _connectedDevices.postValue(list)
-            Log.d("BLE1", "Connected to: $mac")
+        } else {
+
+            currentDevice = currentDevice.copy(
+                latestMessage = message,
+                isActive = true,
+                isError = false
+            )
         }
+        deviceInfoMap[mac] = currentDevice
+
+        AndroidSchedulers.mainThread().scheduleDirect({
+            val updatedDevice = deviceInfoMap[mac]?.copy(isActive = false)
+            if (updatedDevice != null) {
+                deviceInfoMap[mac] = updatedDevice
+                refreshDevices()
+            }
+        }, 1000, TimeUnit.MILLISECONDS)
+
+        refreshDevices()
     }
 
-    // Метод для отключения всех устройств и нового подключения
-    fun disconnectAllAndConnect(maxDevices: Int = 5) {
-        disconnectAll()
+    private fun handleDeviceError(device: RxBleDevice, error: Throwable) {
+        val mac = device.macAddress
 
-        _connectedDevices.postValue(emptyList())
-        messageMap.clear()
-        activeMap.clear()
-
-        scanAndConnectDisposable.clear()
-        connectToAllCompatibleDevices(maxDevices)
-    }
-
-    // Метод для отключения всех устройств
-    private fun disconnectAll() {
-        val currentDeviceIds = _connectedDevices.value?.map { it.deviceId } ?: emptyList()
-        currentDeviceIds.forEach { deviceId ->
-            bleManager.disconnect(deviceId)
+        var currentDevice = deviceInfoMap[mac]
+        if (currentDevice != null) {
+            currentDevice = currentDevice.copy(
+                isError = true,
+                isActive = false
+            )
+            deviceInfoMap[mac] = currentDevice
+            refreshDevices()
+        } else {
+            Log.d(
+                "BLE1",
+                "Device $mac had an error but was not in the active list: ${error.message}"
+            )
         }
-        connectionDisposables.clear()
-    }
-
-    fun disconnectFromDevice(deviceId: String) {
-        bleManager.disconnect(deviceId)
-        messageMap.remove(deviceId)
-        activeMap.remove(deviceId)
-        val newList = _connectedDevices.value?.filter { it.deviceId != deviceId } ?: emptyList()
-        _connectedDevices.postValue(newList)
     }
 
     private fun refreshDevices() {
-        val updated = _connectedDevices.value?.map { dev ->
-            dev.copy(
-                latestMessage = messageMap[dev.deviceId] ?: "",
-                isActive = activeMap[dev.deviceId] ?: false
-            )
-        } ?: emptyList()
-        _connectedDevices.postValue(updated)
+        val updatedList = deviceInfoMap.values.toList()
+        _connectedDevices.postValue(updatedList)
     }
 
     fun clear() {
         scanAndConnectDisposable.clear()
-        connectionDisposables.clear()
     }
 }

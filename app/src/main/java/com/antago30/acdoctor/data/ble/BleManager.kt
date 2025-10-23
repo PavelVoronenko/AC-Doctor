@@ -17,17 +17,17 @@ class BleManager {
 
     private val rxBleClient = BleApplication.instance.rxBleClient
 
-    private val SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
-    private val RX_CHAR_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
+    private val serviceUuid = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
+    private val rxCharUuid = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
 
     private val activeConnections = ConcurrentHashMap<String, Disposable>()
 
     fun scanForCompatibleDevices(): Observable<RxBleDevice> {
         val tag = "BLE1"
-        Log.d(tag, "Starting BLE scan for service: $SERVICE_UUID")
+        Log.d(tag, "Starting BLE scan for service: $serviceUuid")
 
         val scanFilter = ScanFilter.Builder()
-            .setServiceUuid(ParcelUuid(SERVICE_UUID))
+            .setServiceUuid(ParcelUuid(serviceUuid))
             .build()
 
         return rxBleClient.scanBleDevices(
@@ -56,9 +56,9 @@ class BleManager {
                     .toObservable()
                     .flatMap { servicesWrapper: RxBleDeviceServices ->
                         val service = servicesWrapper.bluetoothGattServices
-                            .firstOrNull { it.uuid == SERVICE_UUID }
+                            .firstOrNull { it.uuid == serviceUuid }
 
-                        val char = service?.characteristics?.firstOrNull { it.uuid == RX_CHAR_UUID }
+                        val char = service?.characteristics?.firstOrNull { it.uuid == rxCharUuid }
 
                         if (service == null || char == null) {
                             Observable.error(RuntimeException("Incompatible device: service/char missing"))

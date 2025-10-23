@@ -60,14 +60,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestBlePermissions() {
-        val permissions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT
-            )
-        } else {
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
+        val permissions =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                )
+            } else {
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
 
         val missing = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -93,12 +94,14 @@ class MainActivity : AppCompatActivity() {
                 container1.visibility = View.GONE
                 container2.visibility = View.GONE
             }
+
             1 -> {
                 tvStatus.visibility = View.GONE
                 container1.visibility = View.VISIBLE
                 container2.visibility = View.GONE
                 renderDevice(devices[0], tvDevice1, indicator1)
             }
+
             2 -> {
                 tvStatus.visibility = View.GONE
                 container1.visibility = View.VISIBLE
@@ -110,10 +113,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderDevice(device: ConnectedDevice, textView: TextView, indicator: View) {
-        textView.text = "${device.name}: ${device.latestMessage}"
-        indicator.setBackgroundColor(
-            if (device.isActive) getColor(R.color.green) else getColor(R.color.gray)
-        )
+        textView.text = if (device.isError) "${device.name}: ERROR"
+        else "${device.name}: ${device.latestMessage}"
+
+        val indicatorColorRes = if (device.isError) {
+            R.color.red
+        } else if (device.isActive) {
+            R.color.green
+        } else {
+            R.color.gray
+        }
+        indicator.setBackgroundColor(getColor(indicatorColorRes))
     }
 
     override fun onPause() {
