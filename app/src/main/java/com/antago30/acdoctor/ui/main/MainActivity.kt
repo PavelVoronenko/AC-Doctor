@@ -3,26 +3,21 @@ package com.antago30.acdoctor.ui.main
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.view.View
-import android.widget.*
+import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.antago30.acdoctor.R
+import com.antago30.acdoctor.domain.model.CardView
 import com.antago30.acdoctor.domain.model.ConnectedDevice
+import com.antago30.acdoctor.domain.model.SensorType
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var viewModel: MainViewModel
     private lateinit var btnConnectBle: Button
-    private lateinit var tvStatus: TextView
-    private lateinit var container1: LinearLayout
-    private lateinit var container2: LinearLayout
-    private lateinit var tvDevice1: TextView
-    private lateinit var tvDevice2: TextView
-    private lateinit var indicator1: View
-    private lateinit var indicator2: View
+    private val cardViews = mutableListOf<CardView>()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -44,13 +39,49 @@ class MainActivity : AppCompatActivity() {
 
     private fun initViews() {
         btnConnectBle = findViewById(R.id.btnConnectBLE)
-        tvStatus = findViewById(R.id.tvStatus)
-        container1 = findViewById(R.id.containerDevice1)
-        container2 = findViewById(R.id.containerDevice2)
-        tvDevice1 = findViewById(R.id.tvDevice1)
-        tvDevice2 = findViewById(R.id.tvDevice2)
-        indicator1 = findViewById(R.id.indicator1)
-        indicator2 = findViewById(R.id.indicator2)
+
+        cardViews.add(CardView(findViewById(R.id.card1)))
+        cardViews.add(CardView(findViewById(R.id.card2)))
+        cardViews.add(CardView(findViewById(R.id.card3)))
+        cardViews.add(CardView(findViewById(R.id.card4)))
+        cardViews.add(CardView(findViewById(R.id.card5)))
+
+        configureCard(
+            cardViews[0],
+            R.drawable.pressure_high,
+            "High Pressure",
+            R.drawable.bg_icon_circle_red
+        )
+        configureCard(
+            cardViews[1],
+            R.drawable.pressure_low,
+            "Low Pressure",
+            R.drawable.bg_icon_circle_blue
+        )
+        configureCard(
+            cardViews[2],
+            R.drawable.term_high,
+            "High Temp",
+            R.drawable.bg_icon_circle_green
+        )
+        configureCard(
+            cardViews[3],
+            R.drawable.term_low,
+            "Low Temp",
+            R.drawable.bg_icon_circle_orange
+        )
+        configureCard(
+            cardViews[4],
+            R.drawable.term_all,
+            "All Temp",
+            R.drawable.bg_icon_circle_purple
+        )
+    }
+
+    private fun configureCard(card: CardView, icon: Int, label: String, iconColorRes: Int) {
+        card.icon.setBackgroundResource(iconColorRes)
+        card.label.text = label
+        card.icon.setImageResource(icon)
     }
 
     private fun setupConnectButton() {
@@ -62,10 +93,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestBlePermissions() {
         val permissions =
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                )
+                arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
             } else {
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
             }
@@ -88,49 +116,57 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI(devices: List<ConnectedDevice>) {
-        when (devices.size) {
-            0 -> {
-                tvStatus.visibility = View.VISIBLE
-                container1.visibility = View.GONE
-                container2.visibility = View.GONE
+        for (card in cardViews) {
+            card.render(null)
+        }
+
+        for (device in devices) {
+            if (device.isError) continue
+
+            val type = getSensorType(device)
+            val index = sensorTypeToCardIndex[type] ?: continue
+
+            cardViews[index].render(device)
+        }
+    }
+
+    private fun CardView.render(device: ConnectedDevice?) {
+        when {
+            device == null || device.isError -> {
+                value.text = "--"
+                indicator.setBackgroundResource(R.drawable.ic_indicator_circle_red)
+                setTextColor(R.color.gray_inactive)
             }
 
-            1 -> {
-                tvStatus.visibility = View.GONE
-                container1.visibility = View.VISIBLE
-                container2.visibility = View.GONE
-                renderDevice(devices[0], tvDevice1, indicator1)
-            }
-
-            2 -> {
-                tvStatus.visibility = View.GONE
-                container1.visibility = View.VISIBLE
-                container2.visibility = View.VISIBLE
-                renderDevice(devices[0], tvDevice1, indicator1)
-                renderDevice(devices[1], tvDevice2, indicator2)
+            else -> {
+                value.text = device.latestMessage
+                indicator.setBackgroundResource(R.drawable.ic_indicator_circle_green)
+                setTextColor(R.color.text_light)
             }
         }
     }
 
-    private fun renderDevice(device: ConnectedDevice, textView: TextView, indicator: View) {
-        textView.text = if (device.isError) "${device.name}: ERROR"
-        else "${device.name}: ${device.latestMessage}"
+    private fun CardView.setTextColor(colorRes: Int) {
+        val color = getColor(colorRes)
+        value.setTextColor(color)
+        label.setTextColor(color)
+    }
 
-        val indicatorColorRes = if (device.isError) {
-            R.color.red
-        } else if (device.isActive) {
-            R.color.green
-        } else {
-            R.color.gray
+    private fun getSensorType(device: ConnectedDevice): SensorType {
+        val deviceName = device.name
+        return when {
+            deviceName.startsWith("ESP32-C3-Pressure") -> SensorType.HIGH_PRESSURE
+            deviceName.startsWith("ESP32-C3-Temperature") -> SensorType.HIGH_TEMP
+
+            else -> SensorType.UNKNOWN
         }
-        indicator.setBackgroundColor(getColor(indicatorColorRes))
     }
 
-    override fun onPause() {
-        super.onPause()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-    }
+    private val sensorTypeToCardIndex = mapOf(
+        SensorType.HIGH_PRESSURE to 0,
+        SensorType.LOW_PRESSURE to 1,
+        SensorType.HIGH_TEMP to 2,
+        SensorType.LOW_TEMP to 3,
+        SensorType.BOILER_TEMP to 4
+    )
 }

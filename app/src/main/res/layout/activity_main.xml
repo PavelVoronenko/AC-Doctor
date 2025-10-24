@@ -1,92 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:background="@drawable/bg_main"
     android:fitsSystemWindows="true"
     android:padding="16dp">
 
-    <Button
-        android:id="@+id/btnConnectBLE"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        android:layout_marginBottom="32dp"
-        android:text="@string/connect"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent" />
-
     <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
+        android:id="@+id/tvHeader"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="16dp"
-        android:text="@string/no_devices"
-        android:textSize="18sp"
-        app:layout_constraintBottom_toTopOf="@+id/btnConnectBLE"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/exo_2_bold"
+        android:text="@string/app_name"
+        android:textColor="#FFFFFF"
+        android:textSize="34sp"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
-        android:id="@+id/containerDevice1"
-        android:layout_width="wrap_content"
+        android:id="@+id/row1"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_marginTop="16dp"
         android:gravity="center"
         android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/btnConnectBLE"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/tvHeader">
 
-        <View
-            android:id="@+id/indicator1"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:background="@drawable/indicator_circle" />
+        <include
+            android:id="@+id/card1"
+            layout="@layout/item_sensor_card" />
 
-        <TextView
-            android:id="@+id/tvDevice1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:textSize="16sp" />
+        <include
+            android:id="@+id/card2"
+            layout="@layout/item_sensor_card" />
+
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/containerDevice2"
-        android:layout_width="wrap_content"
+        android:id="@+id/row2"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_marginTop="16dp"
         android:gravity="center"
         android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/containerDevice1"
-        app:layout_constraintVertical_bias="0.01999998">
+        app:layout_constraintTop_toBottomOf="@id/row1">
 
-        <View
-            android:id="@+id/indicator2"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:background="@drawable/indicator_circle" />
+        <include
+            android:id="@+id/card3"
+            layout="@layout/item_sensor_card" />
 
-        <TextView
-            android:id="@+id/tvDevice2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:textSize="16sp" />
+        <include
+            android:id="@+id/card4"
+            layout="@layout/item_sensor_card" />
+
     </LinearLayout>
+
+    <include
+        android:id="@+id/card5"
+        layout="@layout/item_sensor_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/row2"
+        app:layout_constraintWidth_percent="0.95" />
+
+    <Button
+        android:id="@+id/btnConnectBLE"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/button_background_with_ripple"
+        android:backgroundTintMode="add"
+        android:fontFamily="@font/exo_2_bold"
+        android:text="@string/connect"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

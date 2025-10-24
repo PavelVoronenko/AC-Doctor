@@ -2,7 +2,21 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="green">#4CAF50</color>
     <color name="gray">#9E9E9E</color>
     <color name="red">#FFFF0000</color>
+    <color name="statusBar">#FFFFFFFF</color>
+    <color name="text">#1A4A4A</color>
+    <color name="accent_active">#2DD4BF</color>
+    <color name="blue">#55AAFF</color>
+    <color name="orange">#FF9933</color>
+    <color name="green">#55DD77</color>
+    <color name="purple">#BB55DD</color>
+    <color name="gray_inactive">#666666</color>
+    <color name="text_light">#FFFFFF</color>
+    <color name="icon_red">#FF5555</color>
+    <color name="icon_blue">#55AAFF</color>
+    <color name="icon_orange">#FF9933</color>
+    <color name="icon_green">#55DD77</color>
+    <color name="icon_purple">#BB55DD</color>
+    <color name="transparent">@android:color/transparent</color>
 </resources>
