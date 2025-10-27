@@ -3,7 +3,10 @@ package com.antago30.acdoctor.ui.main
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -17,6 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var viewModel: MainViewModel
     private lateinit var btnConnectBle: Button
+    private lateinit var progressBarConnected: ProgressBar
     private val cardViews = mutableListOf<CardView>()
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -39,6 +43,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initViews() {
         btnConnectBle = findViewById(R.id.btnConnectBLE)
+        progressBarConnected = findViewById(R.id.progressBarConnected)
 
         cardViews.add(CardView(findViewById(R.id.card1)))
         cardViews.add(CardView(findViewById(R.id.card2)))
@@ -113,6 +118,16 @@ class MainActivity : AppCompatActivity() {
         viewModel.connectedDevices.observe(this) { devices ->
             updateUI(devices)
         }
+
+        viewModel.isLoading.observe(this) { loading ->
+            progressBarConnected.visibility = if (loading) View.VISIBLE else View.INVISIBLE
+        }
+
+        viewModel.toastMessage.observe(this) { message ->
+            if (!message.isNullOrBlank()) {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun updateUI(devices: List<ConnectedDevice>) {
@@ -125,7 +140,6 @@ class MainActivity : AppCompatActivity() {
 
             val type = getSensorType(device)
             val index = sensorTypeToCardIndex[type] ?: continue
-
             cardViews[index].render(device)
         }
     }
@@ -133,7 +147,7 @@ class MainActivity : AppCompatActivity() {
     private fun CardView.render(device: ConnectedDevice?) {
         when {
             device == null || device.isError -> {
-                value.text = "--"
+                value.text = ""
                 indicator.setBackgroundResource(R.drawable.ic_indicator_circle_red)
                 setTextColor(R.color.gray_inactive)
             }

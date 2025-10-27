@@ -20,6 +20,7 @@ class BleRepository(private val bleManager: BleManager) {
     private val deviceInfoMap = ConcurrentHashMap<String, ConnectedDevice>()
 
     private val scanAndConnectDisposable = CompositeDisposable()
+    var onConnectionProcessFinished: ((foundAny: Boolean) -> Unit)? = null
 
     fun disconnectAllAndConnect(maxDevices: Int = 5) {
         disconnectAll()
@@ -37,61 +38,58 @@ class BleRepository(private val bleManager: BleManager) {
     }
 
     fun connectToAllCompatibleDevices(maxDevices: Int = 5) {
-        if ((connectedDevices.value?.size ?: 0) >= maxDevices) return
+        if ((connectedDevices.value?.size ?: 0) >= maxDevices) {
+            onConnectionProcessFinished?.invoke(false)
+            return
+        }
 
         scanAndConnectDisposable.clear()
+        _connectedDevices.postValue(emptyList())
+        deviceInfoMap.clear()
 
-        val scanWithTimeout = bleManager.scanForCompatibleDevices()
+        val scanJob = bleManager.scanForCompatibleDevices()
             .takeUntil(Observable.timer(3, TimeUnit.SECONDS, Schedulers.io()))
-
-        val job = scanWithTimeout
             .toList()
-            .map { list -> list.take(maxDevices) }
+            .map { it.take(maxDevices) }
             .onErrorReturn { emptyList() }
-            .flatMapObservable { devices ->
-                Log.d(
-                    "BLE1",
-                    "Scan finished. Found ${devices.size} devices: ${devices.map { it.macAddress }}"
-                )
-                Observable.fromIterable(devices)
-                    .filter { device ->
-                        val alreadyInList =
-                            connectedDevices.value?.any { it.deviceId == device.macAddress } == true
-                        val alreadyConnected = bleManager.isConnected(device.macAddress)
-                        !alreadyInList && !alreadyConnected
-                    }
-                    .flatMap(
-                        { device ->
-                            Log.d("BLE1", "Attempting to connect to ${device.macAddress}")
-                            bleManager.connectToDeviceAsObservable(device)
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .doOnNext { data ->
-                                    Log.d("BLE1", "Data received from ${device.macAddress}")
-                                    handleIncomingMessage(device, data)
-                                }
-                                .doOnError { error ->
-                                    Log.w(
-                                        "BLE1",
-                                        "Failed to connect or receive data from ${device.macAddress}",
-                                        error
-                                    )
-                                    handleDeviceError(device, error)
-                                }
-                                .onErrorResumeNext(Observable.empty())
-                        },
-                        false,
-                        maxDevices
-                    )
-            }
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ devices ->
+                Log.d("BLE1", "Scan finished. Found ${devices.size} devices")
+
+                val foundAny = devices.isNotEmpty()
+                for (device in devices) {
+                    val mac = device.macAddress
+                    if (connectedDevices.value?.any { it.deviceId == mac } == true) continue
+                    if (bleManager.isConnected(mac)) continue
+
+                    startListeningToDevice(device)
+                }
+
+                onConnectionProcessFinished?.invoke(foundAny)
+
+            }, { error ->
+                onConnectionProcessFinished?.invoke(false)
+            })
+
+        scanAndConnectDisposable.add(scanJob)
+    }
+
+    private fun startListeningToDevice(device: RxBleDevice) {
+        val mac = device.macAddress
+        Log.d("BLE1", "Starting listener for $mac")
+
+        val listener = bleManager.connectToDeviceAsObservable(device)
+            .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
-                {},
-                { error -> Log.w("BLE1", "Pipeline error", error) },
-                { Log.d("BLE1", "Scan+connect pipeline completed") }
+                { data -> handleIncomingMessage(device, data) },
+                { error ->
+                    Log.w("BLE1", "Listener error for $mac", error)
+                    handleDeviceError(device, error)
+                }
             )
 
-        scanAndConnectDisposable.add(job)
+        scanAndConnectDisposable.add(listener)
     }
 
     private fun handleIncomingMessage(device: RxBleDevice, data: ByteArray) {
