@@ -75,17 +75,21 @@
         app:layout_constraintTop_toBottomOf="@id/row2"
         app:layout_constraintWidth_percent="0.95" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnConnectBLE"
         android:layout_width="0dp"
         android:layout_height="64dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:layout_marginBottom="32dp"
+        app:backgroundTint="@null"
+        app:rippleColor="@null"
         android:background="@drawable/button_background_with_ripple"
-        android:backgroundTintMode="add"
-        android:fontFamily="@font/exo_2_bold"
+        android:backgroundTintMode="screen"
+        android:fontFamily="@font/exo_2_medium"
+        android:stateListAnimator="@animator/button_elevation"
         android:text="@string/connect"
+        android:textAllCaps="false"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
         android:textStyle="bold"
