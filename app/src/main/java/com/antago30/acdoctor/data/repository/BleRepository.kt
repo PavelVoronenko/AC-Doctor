@@ -30,11 +30,16 @@ class BleRepository(private val bleManager: BleManager) {
         connectToAllCompatibleDevices(maxDevices)
     }
 
-    private fun disconnectAll() {
+    fun disconnectAll() {
         val currentDeviceIds = _connectedDevices.value?.map { it.deviceId } ?: emptyList()
+
         currentDeviceIds.forEach { deviceId ->
             bleManager.disconnect(deviceId)
         }
+
+        _connectedDevices.postValue(emptyList())
+        deviceInfoMap.clear()
+        scanAndConnectDisposable.clear()
     }
 
     fun connectToAllCompatibleDevices(maxDevices: Int = 5) {

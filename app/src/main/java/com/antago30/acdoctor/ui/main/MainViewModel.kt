@@ -30,6 +30,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.disconnectAllAndConnect(maxDevices)
     }
 
+    fun disconnectAll() {
+        repository.disconnectAll()
+    }
 
     override fun onCleared() {
         repository.clear()

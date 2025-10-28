@@ -121,6 +121,13 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.isLoading.observe(this) { loading ->
             progressBarConnected.visibility = if (loading) View.VISIBLE else View.INVISIBLE
+            btnConnectBle.isClickable = !loading
+            btnConnectBle.isEnabled = !loading
+            btnConnectBle.background = if (loading) {
+                ContextCompat.getDrawable(this, R.drawable.button_background_with_ripple_disabled)
+            } else {
+                ContextCompat.getDrawable(this, R.drawable.button_background_with_ripple)
+            }
         }
 
         viewModel.toastMessage.observe(this) { message ->
@@ -183,4 +190,14 @@ class MainActivity : AppCompatActivity() {
         SensorType.LOW_TEMP to 3,
         SensorType.BOILER_TEMP to 4
     )
+
+    override fun onPause() {
+        super.onPause()
+        //viewModel.disconnectAll()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        viewModel.disconnectAll()
+    }
 }
