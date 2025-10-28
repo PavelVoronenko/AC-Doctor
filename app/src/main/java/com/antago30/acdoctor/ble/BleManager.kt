@@ -1,4 +1,4 @@
-package com.antago30.acdoctor.data.ble
+package com.antago30.acdoctor.ble
 
 import android.os.ParcelUuid
 import android.util.Log
@@ -10,12 +10,12 @@ import com.polidea.rxandroidble2.scan.ScanSettings
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class BleManager {
 
-    private val rxBleClient = BleApplication.instance.rxBleClient
+    private val rxBleClient = BleApplication.Companion.instance.rxBleClient
 
     private val serviceUuid = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
     private val rxCharUuid = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")

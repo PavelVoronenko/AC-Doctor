@@ -22,7 +22,10 @@ class BleApplication : Application() {
             if (throwable is UndeliverableException) {
                 Log.w("RxJava", "Undeliverable exception", throwable)
             } else {
-                Thread.currentThread().uncaughtExceptionHandler?.uncaughtException(Thread.currentThread(), throwable)
+                Thread.currentThread().uncaughtExceptionHandler?.uncaughtException(
+                    Thread.currentThread(),
+                    throwable
+                )
             }
         }
     }

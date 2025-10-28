@@ -1,11 +1,11 @@
-package com.antago30.acdoctor.ui.main
+package com.antago30.acdoctor.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.antago30.acdoctor.data.ble.BleManager
-import com.antago30.acdoctor.data.repository.BleRepository
+import com.antago30.acdoctor.ble.BleManager
+import com.antago30.acdoctor.ble.BleRepository
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLoading = MutableLiveData<Boolean>()

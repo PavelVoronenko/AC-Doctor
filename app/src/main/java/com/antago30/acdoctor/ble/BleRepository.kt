@@ -1,8 +1,8 @@
-package com.antago30.acdoctor.data.repository
+package com.antago30.acdoctor.ble
 
 import android.util.Log
-import com.antago30.acdoctor.data.ble.BleManager
-import com.antago30.acdoctor.domain.model.ConnectedDevice
+import androidx.lifecycle.MutableLiveData
+import com.antago30.acdoctor.model.ConnectedDevice
 import com.polidea.rxandroidble2.RxBleDevice
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 class BleRepository(private val bleManager: BleManager) {
 
     private val _connectedDevices =
-        androidx.lifecycle.MutableLiveData<List<ConnectedDevice>>(emptyList())
+        MutableLiveData<List<ConnectedDevice>>(emptyList())
     val connectedDevices = _connectedDevices
 
     private val deviceInfoMap = ConcurrentHashMap<String, ConnectedDevice>()

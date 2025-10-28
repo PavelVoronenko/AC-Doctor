@@ -1,4 +1,4 @@
-package com.antago30.acdoctor.domain.model
+package com.antago30.acdoctor.model
 
 enum class SensorType {
     HIGH_PRESSURE,

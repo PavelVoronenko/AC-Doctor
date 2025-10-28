@@ -1,4 +1,4 @@
-package com.antago30.acdoctor.domain.model
+package com.antago30.acdoctor.model
 
 data class ConnectedDevice(
     val deviceId: String,
