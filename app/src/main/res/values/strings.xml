@@ -3,4 +3,7 @@
     <string name="connect">Connect</string>
     <string name="no_devices">No devices connected</string>
     <string name="icon">Icon</string>
+    <string name="image">Image</string>
+    <string name="battery_percent">%1$d%%</string>
+    <string name="battery_unknown">—</string>
 </resources>

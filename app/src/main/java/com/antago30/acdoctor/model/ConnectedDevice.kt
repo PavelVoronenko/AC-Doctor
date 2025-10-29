@@ -4,6 +4,7 @@ data class ConnectedDevice(
     val deviceId: String,
     val name: String,
     val latestMessage: String = "",
+    val batteryVoltage: String = "",
     val isActive: Boolean = false,
     val isError: Boolean = false
 )

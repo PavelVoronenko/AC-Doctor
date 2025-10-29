@@ -11,12 +11,14 @@ RTC_DATA_ATTR bool sleepFlag = false;
 // BLE параметры
 BLEServer* pServer = nullptr;
 BLECharacteristic* pTempCharacteristic = nullptr;
+BLECharacteristic* batteryCharacteristic = nullptr;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
 // UUID
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define TEMP_CHAR_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define BATTERY_CHAR_UUID   "e1f00324-70ea-4fff-b0b1-94f33872dff9"
 
 // Константа таймаута
 const uint64_t DEEP_SLEEP_TIMEOUT = 7200000 * 1000; // 2 часа в микросекундах
@@ -221,6 +223,14 @@ void setup() {
         BLECharacteristic::PROPERTY_NOTIFY
     );
     pTempCharacteristic->addDescriptor(new BLE2902());
+
+    //Характеристика для передачи напряжения батареи
+    batteryCharacteristic = pService->createCharacteristic(
+        BATTERY_CHAR_UUID,
+        BLECharacteristic::PROPERTY_READ |
+        BLECharacteristic::PROPERTY_NOTIFY
+    );
+    batteryCharacteristic->addDescriptor(new BLE2902());
     
     // Запуск сервиса
     pService->start();
@@ -273,7 +283,7 @@ void loop() {
 
     // Считывание второго канала (конфигурация F3E3) каждые 5 секунд
     // Осуществляется даже при фатальной ошибке
-    if (currentMillis - lastSecondChannelRead >= 5000) {
+    if (currentMillis - lastSecondChannelRead >= 1000) {
         lastSecondChannelRead = currentMillis;
         
         int16_t second_channel_value;
@@ -286,6 +296,11 @@ void loop() {
             Serial.print(" -> Battery Voltage: ");
             Serial.print(voltage, 4);
             Serial.println(" V");
+
+            char voltageStr[10];
+            dtostrf(voltage, 1, 4, voltageStr);
+            batteryCharacteristic->setValue(voltageStr);
+            batteryCharacteristic->notify();
             
             // Проверка напряжения батареи
             checkBatteryVoltage(voltage);

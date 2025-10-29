@@ -84,29 +84,44 @@ class BleRepository(private val bleManager: BleManager) {
         val mac = device.macAddress
         Log.d("BLE1", "Starting listener for $mac")
 
-        val listener = bleManager.connectToDeviceAsObservable(device)
+        val disposable = bleManager.connectToDeviceAsObservable(device)
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
-                { data -> handleIncomingMessage(device, data) },
-                { error ->
-                    Log.w("BLE1", "Listener error for $mac", error)
-                    handleDeviceError(device, error)
-                }
+                { message ->
+                    when (message) {
+                        is BleMessage.Data -> handleIncomingMessage(
+                            device,
+                            message.payload.toString(Charsets.UTF_8),
+                            isBattery = false
+                        )
+
+                        is BleMessage.Battery -> handleIncomingMessage(
+                            device,
+                            message.voltage,
+                            isBattery = true
+                        )
+                    }
+                },
+                { error -> handleDeviceError(device, error) }
             )
 
-        scanAndConnectDisposable.add(listener)
+        scanAndConnectDisposable.add(disposable)
     }
 
-    private fun handleIncomingMessage(device: RxBleDevice, data: ByteArray) {
+    private fun handleIncomingMessage(
+        device: RxBleDevice,
+        messageText: String,
+        isBattery: Boolean
+    ) {
         val mac = device.macAddress
-        val message = data.toString(Charsets.UTF_8)
 
         var currentDevice = deviceInfoMap[mac]
         if (currentDevice == null) {
             currentDevice = ConnectedDevice(
                 deviceId = mac,
                 name = device.name ?: "Device $mac",
-                latestMessage = message,
+                latestMessage = if (!isBattery) messageText else "",
+                batteryVoltage = if (isBattery) messageText else "",
                 isActive = true,
                 isError = false
             )
@@ -114,19 +129,19 @@ class BleRepository(private val bleManager: BleManager) {
             list.add(currentDevice)
             _connectedDevices.postValue(list)
         } else {
-
-            currentDevice = currentDevice.copy(
-                latestMessage = message,
-                isActive = true,
-                isError = false
-            )
+            currentDevice = if (isBattery) {
+                currentDevice.copy(batteryVoltage = messageText, isActive = true, isError = false)
+            } else {
+                currentDevice.copy(latestMessage = messageText, isActive = true, isError = false)
+            }
         }
+
         deviceInfoMap[mac] = currentDevice
 
         AndroidSchedulers.mainThread().scheduleDirect({
-            val updatedDevice = deviceInfoMap[mac]?.copy(isActive = false)
-            if (updatedDevice != null) {
-                deviceInfoMap[mac] = updatedDevice
+            val updated = deviceInfoMap[mac]?.copy(isActive = false)
+            if (updated != null) {
+                deviceInfoMap[mac] = updated
                 refreshDevices()
             }
         }, 1000, TimeUnit.MILLISECONDS)

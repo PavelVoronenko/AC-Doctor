@@ -1,11 +1,13 @@
 package com.antago30.acdoctor.ui
 
 import android.content.Context
+import android.view.View
 import androidx.core.content.ContextCompat
 import com.antago30.acdoctor.R
 import com.antago30.acdoctor.model.CardView
 import com.antago30.acdoctor.model.ConnectedDevice
 import com.antago30.acdoctor.model.SensorType
+import com.antago30.acdoctor.utils.BatteryUtils
 
 class CardManager(
     private val context: Context,
@@ -53,7 +55,7 @@ class CardManager(
 
             val type = getSensorType(device)
             val index = sensorTypeToCardIndex[type] ?: continue
-            cardViews[index].renderActive(device.latestMessage)
+            cardViews[index].renderActive(device.latestMessage, device.batteryVoltage)
         }
     }
 
@@ -82,12 +84,28 @@ class CardManager(
 
     private fun CardView.renderInactive() {
         value.text = ""
+        battery.visibility = View.INVISIBLE
+        batteryPercent.visibility = View.INVISIBLE
         indicator.setBackgroundResource(R.drawable.ic_indicator_circle_red)
         setTextColor(R.color.gray_inactive)
     }
 
-    private fun CardView.renderActive(message: String) {
+    private fun CardView.renderActive(message: String, batteryVoltage: String = "") {
         value.text = message
+
+        // Показываем батарейку и проценты
+        battery.visibility = View.VISIBLE
+        batteryPercent.visibility = View.VISIBLE
+
+        val percent = if (batteryVoltage.isNotBlank()) {
+            BatteryUtils.voltageToPercent(batteryVoltage)
+        } else {
+            0f
+        }
+
+        battery.chargePercent = percent
+        batteryPercent.text = context.getString(R.string.battery_percent, percent.toInt())
+
         indicator.setBackgroundResource(R.drawable.ic_indicator_circle_green)
         setTextColor(R.color.text_light)
     }

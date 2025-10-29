@@ -19,4 +19,8 @@
     <color name="icon_green">#55DD77</color>
     <color name="icon_purple">#BB55DD</color>
     <color name="transparent">@android:color/transparent</color>
+    <color name="battery_outline">#A0C4E8</color>
+    <color name="battery_charge">#4FC3F7</color>
+    <color name="battery_low">#FFB74D</color>
+    <color name="battery_critical">#EF5350</color>
 </resources>
