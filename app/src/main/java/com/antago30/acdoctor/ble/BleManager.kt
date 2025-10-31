@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class BleManager {
 
-    private val rxBleClient = BleApplication.Companion.instance.rxBleClient
+    private val rxBleClient = BleApplication.instance.rxBleClient
 
     private val serviceUuid = BleConstants.SERVICE_UUID
     private val rxCharUuid = BleConstants.RX_CHAR_UUID

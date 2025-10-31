@@ -15,12 +15,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: BleRepository by lazy {
         BleRepository(BleManager()).apply {
-            onConnectionProcessFinished = { foundAny ->
+            onConnectionProcessFinished = { countDevices ->
                 _isLoading.postValue(false)
-                if (!foundAny) {
-                    _toastMessage.postValue("Устройства не найдены")
-                }
+                if (countDevices > 0) _toastMessage.postValue("Обнаружено устройств: $countDevices")
+                    else _toastMessage.postValue("Нет активных устройств")
             }
+
         }
     }
 

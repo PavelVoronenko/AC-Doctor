@@ -20,7 +20,7 @@ class BleRepository(private val bleManager: BleManager) {
     private val deviceInfoMap = ConcurrentHashMap<String, ConnectedDevice>()
 
     private val scanAndConnectDisposable = CompositeDisposable()
-    var onConnectionProcessFinished: ((foundAny: Boolean) -> Unit)? = null
+    var onConnectionProcessFinished: ((countDevices: Int) -> Unit)? = null
 
     fun disconnectAllAndConnect(maxDevices: Int = 5) {
         disconnectAll()
@@ -44,7 +44,7 @@ class BleRepository(private val bleManager: BleManager) {
 
     fun connectToAllCompatibleDevices(maxDevices: Int = 5) {
         if ((connectedDevices.value?.size ?: 0) >= maxDevices) {
-            onConnectionProcessFinished?.invoke(false)
+            onConnectionProcessFinished?.invoke(0)
             return
         }
 
@@ -62,7 +62,6 @@ class BleRepository(private val bleManager: BleManager) {
             .subscribe({ devices ->
                 Log.d("BLE1", "Scan finished. Found ${devices.size} devices")
 
-                val foundAny = devices.isNotEmpty()
                 for (device in devices) {
                     val mac = device.macAddress
                     if (connectedDevices.value?.any { it.deviceId == mac } == true) continue
@@ -71,10 +70,10 @@ class BleRepository(private val bleManager: BleManager) {
                     startListeningToDevice(device)
                 }
 
-                onConnectionProcessFinished?.invoke(foundAny)
+                onConnectionProcessFinished?.invoke(devices.size)
 
-            }, { error ->
-                onConnectionProcessFinished?.invoke(false)
+            }, {
+                onConnectionProcessFinished?.invoke(0)
             })
 
         scanAndConnectDisposable.add(scanJob)
