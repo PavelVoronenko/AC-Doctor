@@ -67,8 +67,11 @@ class CardManager(
 
     private fun getSensorType(device: ConnectedDevice): SensorType {
         return when {
-            device.name.startsWith("ESP32-C3-Pressure") -> SensorType.HIGH_PRESSURE
-            device.name.startsWith("ESP32-C3-Temperature") -> SensorType.HIGH_TEMP
+            device.name.startsWith("ESP32-Pressure-High") -> SensorType.HIGH_PRESSURE
+            device.name.startsWith("ESP32-Pressure-Low") -> SensorType.LOW_PRESSURE
+            device.name.startsWith("ESP32-Temp-High") -> SensorType.HIGH_TEMP
+            device.name.startsWith("ESP32-Temp-Low") -> SensorType.LOW_TEMP
+            device.name.startsWith("ESP32-Temp-All") -> SensorType.ALL_TEMP
 
             else -> SensorType.UNKNOWN
         }
@@ -79,7 +82,7 @@ class CardManager(
         SensorType.LOW_PRESSURE to 1,
         SensorType.HIGH_TEMP to 2,
         SensorType.LOW_TEMP to 3,
-        SensorType.BOILER_TEMP to 4
+        SensorType.ALL_TEMP to 4
     )
 
     private fun CardView.renderInactive() {

@@ -5,6 +5,6 @@ enum class SensorType {
     LOW_PRESSURE,
     HIGH_TEMP,
     LOW_TEMP,
-    BOILER_TEMP,
+    ALL_TEMP,
     UNKNOWN
 }

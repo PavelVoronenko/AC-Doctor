@@ -3,6 +3,8 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include <esp_sleep.h>
 
 // RTC-переменная
@@ -28,28 +30,27 @@ const int LED_PIN = 5;         // GPIO5 для светодиода
 unsigned long previousMillis = 0;
 int ledState = LOW;
 
-// Управление преобразователем
-const int MT3608_EN = 6;       // GPIO6 для управления MT3608
+// Управление питанием DS18B20
+const int DS18B20_POWER = 6;   // GPIO6 для управления питанием DS18B20
+
+// Параметры DS18B20
+const int ONE_WIRE_BUS = 7;    // GPIO7 для данных DS18B20
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+bool ds18b20Found = false;     // Флаг наличия датчика
 
 // Параметры ADS1115
 const int ADS_ADDR = 0x48;     // Адрес I2C (1001000)
-const int ADS_CONFIG_CH1 = 0xC3E3; // Конфигурационный регистр для канала 1 (пин 4)
-const int ADS_CONFIG_CH2 = 0xD3E3; // Конфигурационный регистр для канала 2 (пин 5)
-int16_t base_value = 0;        // Базовое значение для калибровки
-uint8_t read_count = 0;        // Счетчик измерений
-unsigned long lastPressureRead = 0;
+const int ADS_CONFIG_CH2 = 0xD5E3; // Конфигурационный регистр для канала 2 (пин 5)
+
+unsigned long lastTemperatureRead = 0;
 unsigned long lastSecondChannelRead = 0;
 unsigned long lastBatteryWarning = 0;
-bool adsFatalError = false;    // Фатальная ошибка ADS1115 (требует перезагрузки)
-bool adsTransientError = false;// Временная ошибка ADS1115 (автовосстановление)
 bool lowBatteryMode = false;   // Режим низкого заряда батареи
 
-// Калибровочный (поправочный) коэффициент
-const float CALIBRATION_FACTOR = 1.00000; // X.XXXXX формат
-
 // Параметры преобразования напряжения
-const float ADC_FULL_SCALE = 4.096;      // Максимальное напряжение в вольтах
-const float VOLTAGE_DIVIDER_RATIO = 2.0; // Коэффициент делителя 1:2 на входе АЦП (100кОм/100кОм)
+const float ADC_FULL_SCALE = 2.048;      // Максимальное напряжение в вольтах
+const float VOLTAGE_DIVIDER_RATIO = 4.0; // Коэффициент делителя 1:4 на входе АЦП
 
 // Пороги напряжения батареи
 const float LOW_BATT_THRESHOLD = 3.7;  // 3.7V - предупреждение
@@ -65,7 +66,7 @@ class MyServerCallbacks : public BLEServerCallbacks {
     void onDisconnect(BLEServer* pServer) {
         deviceConnected = false;
         Serial.println("Device disconnected");
-        digitalWrite(LED_PIN, HIGH); // Выключить светодиод
+        digitalWrite(LED_PIN, LOW); // Выключить светодиод (LOW = выкл)
     }
 };
 
@@ -106,20 +107,33 @@ bool readADS1115(int16_t *value, uint16_t config) {
     return true;
 }
 
-void disableConverter() {
-    digitalWrite(MT3608_EN, LOW);
-    pinMode(MT3608_EN, INPUT_PULLDOWN);
-    Serial.println("Converter disabled (INPUT_PULLDOWN)");
+float readDS18B20Temperature() {
+    sensors.requestTemperatures();
+    float temperature = sensors.getTempCByIndex(0);
+    
+    // Проверка на ошибку чтения
+    if (temperature == DEVICE_DISCONNECTED_C) {
+        Serial.println("Error reading DS18B20");
+        return -999.9; // Значение ошибки
+    }
+    
+    return temperature;
+}
+
+void disableDS18B20() {
+    digitalWrite(DS18B20_POWER, LOW);
+    pinMode(DS18B20_POWER, INPUT_PULLDOWN);
+    Serial.println("DS18B20 power disabled (INPUT_PULLDOWN)");
 }
 
 void prepareForDeepSleep() {
     Serial.println("Preparing for deep sleep...");
     
     // Выключение светодиода
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_PIN, LOW); // LOW = выкл
     
-    // Отключение преобразователя
-    disableConverter();
+    // Отключение питания DS18B20
+    disableDS18B20();
     
     // Отключение I2C
     Wire.end();
@@ -175,18 +189,29 @@ void checkBatteryVoltage(float voltage) {
 void setup() {
     Serial.begin(115200);
     
-    // Вывод коэффициента калибровки
-    Serial.print("Calibration factor: ");
-    Serial.println(CALIBRATION_FACTOR, 5); // 5 знаков после запятой
-    
     // Настройка пинов
     pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH); // Выключить светодиод
+    digitalWrite(LED_PIN, LOW); // Выключить светодиод (LOW = выкл)
     
-    // Инициализация управления преобразователем
-    pinMode(MT3608_EN, OUTPUT);
-    digitalWrite(MT3608_EN, HIGH); // Включить преобразователь
-    Serial.println("Converter enabled (HIGH)");
+    // Инициализация питания DS18B20
+    pinMode(DS18B20_POWER, OUTPUT);
+    digitalWrite(DS18B20_POWER, HIGH); // Включить питание DS18B20
+    Serial.println("DS18B20 power enabled (HIGH)");
+
+    // Инициализация DS18B20
+    sensors.begin();
+    
+    // Проверка наличия DS18B20
+    int deviceCount = sensors.getDeviceCount();
+    if (deviceCount == 0) {
+        Serial.println("DS18B20 not found!");
+        ds18b20Found = false;
+    } else {
+        Serial.print("DS18B20 initialized. Found ");
+        Serial.print(deviceCount);
+        Serial.println(" sensors");
+        ds18b20Found = true;
+    }
 
     // Инициализация I2C
     Wire.begin(8, 9); // SDA=GPIO8, SCL=GPIO9
@@ -195,7 +220,6 @@ void setup() {
     Wire.beginTransmission(ADS_ADDR);
     if (Wire.endTransmission() != 0) {
         Serial.println("ADS1115 not found! Communication error");
-        adsFatalError = true;
     } else {
         Serial.println("ADS1115 initialized");
     }
@@ -207,7 +231,7 @@ void setup() {
     }
 
     // Инициализация BLE
-    BLEDevice::init("ESP32-C3-Pressure");
+    BLEDevice::init("ESP32-Temp-Low");
     
     // Создание BLE сервера
     pServer = BLEDevice::createServer();
@@ -242,26 +266,54 @@ void setup() {
     pAdvertising->setMinPreferred(0x06);
     BLEDevice::startAdvertising();
 
-    Serial.println("BLE Pressure device active. Waiting for connections...");
+    Serial.println("BLE Temperature device active. Waiting for connections...");
     Serial.println("Device will enter deep sleep after 2 hours of operation");
+}
+
+String formatTemperature(float temperature) {
+    String result;
+    
+    if (temperature >= 100.0) {
+        // 3 цифры до точки: "123.4°C"
+        result = String(temperature, 1) + "°C";
+    } else if (temperature >= 10.0) {
+        // 2 цифры до точки: " 12.3°C"
+        result = " " + String(temperature, 1) + "°C";
+    } else if (temperature >= 0.0) {
+        // 1 цифра до точки: "  1.2°C"
+        result = "  " + String(temperature, 1) + "°C";
+    } else if (temperature > -10.0) {
+        // отрицательная, 1 цифра до точки: " -1.2°C"
+        result = String(temperature, 1) + "°C";
+    } else if (temperature > -100.0) {
+        // отрицательная, 2 цифры до точки: "-12.3°C"
+        result = String(temperature, 1) + "°C";
+    } else {
+        // отрицательная, 3 цифры до точки: "-123.4°C"
+        result = String(temperature, 1) + "°C";
+    }
+    
+    return result;
 }
 
 void loop() {
     unsigned long currentMillis = millis();
     
-    // Управление светодиодом
+    // Управление светодиодом при подключении к VCC
     if (!deviceConnected) {
+        // Режим ожидания - быстрое мигание
         if (currentMillis - previousMillis >= 100) {
             previousMillis = currentMillis;
             ledState = (ledState == LOW) ? HIGH : LOW;
-            digitalWrite(LED_PIN, ledState);
+            digitalWrite(LED_PIN, ledState); // LOW = выкл, HIGH = вкл
         }
     } else {
+        // Режим подключения - короткие вспышки каждые 2 секунды
         if (currentMillis - previousMillis >= 2000) {
             previousMillis = currentMillis;
-            digitalWrite(LED_PIN, LOW);
+            digitalWrite(LED_PIN, HIGH); // Включить на мгновение
         } else if (currentMillis - previousMillis >= 100) {
-            digitalWrite(LED_PIN, HIGH);
+            digitalWrite(LED_PIN, LOW); // Выключить
         }
     }
 
@@ -281,8 +333,7 @@ void loop() {
         oldDeviceConnected = deviceConnected;
     }
 
-    // Считывание второго канала (конфигурация F3E3) каждые 5 секунд
-    // Осуществляется даже при фатальной ошибке
+    // Считывание второго канала (напряжение батареи) каждые 5 секунд
     if (currentMillis - lastSecondChannelRead >= 1000) {
         lastSecondChannelRead = currentMillis;
         
@@ -291,7 +342,7 @@ void loop() {
             // Преобразование в напряжение с учетом делителя
             float voltage = convertToVoltage(second_channel_value);
             
-            Serial.print("Channel 2 (D3E3) ADC raw: ");
+            Serial.print("Channel 2 (D5E3) ADC raw: ");
             Serial.print(second_channel_value);
             Serial.print(" -> Battery Voltage: ");
             Serial.print(voltage, 4);
@@ -305,7 +356,7 @@ void loop() {
             // Проверка напряжения батареи
             checkBatteryVoltage(voltage);
         } else {
-            Serial.println("Error reading second channel (D3E3)");
+            Serial.println("Error reading second channel (D5E3)");
         }
     }
     
@@ -317,101 +368,50 @@ void loop() {
         Serial.println("Sent LowBatt warning");
     }
 
-    // Обработка фатальной ошибки ADS1115
-    if (adsFatalError) {
-        if (deviceConnected && (currentMillis - lastPressureRead >= 1000)) {
-            lastPressureRead = currentMillis;
-            pTempCharacteristic->setValue("Fatal error");
-            pTempCharacteristic->notify();
-            Serial.println("Sent Fatal Error: ADS1115 communication failure");
-        }
-        // Продолжаем работу для контроля батареи
-        return; // Прекращаем операции с каналом 1, но канал 2 уже обработан
-    }
-
-    // Если в режиме низкого заряда - пропускаем обработку давления
+    // Если в режиме низкого заряда - пропускаем обработку температуры
     if (lowBatteryMode) {
         return;
     }
 
-    // Проверка необходимости чтения давления
-    bool shouldReadPressure = false;
+    // Чтение температуры с тем же интервалом, что и давление (каждую секунду при подключении)
+    bool shouldReadTemperature = false;
 
-    // Определение необходимости чтения
-    if (read_count < 3) {
-        shouldReadPressure = (currentMillis - lastPressureRead >= 500);
-    } 
-    else if (deviceConnected) {
-        shouldReadPressure = (currentMillis - lastPressureRead >= 1000);
+    if (deviceConnected) {
+        shouldReadTemperature = (currentMillis - lastTemperatureRead >= 1000);
     }
 
-    // Чтение и обработка данных
-    if (shouldReadPressure) {
-        lastPressureRead = currentMillis;
-        int16_t adc_value;
-        bool success = readADS1115(&adc_value, ADS_CONFIG_CH1);
+    // Чтение и обработка температуры
+    if (shouldReadTemperature) {
+        lastTemperatureRead = currentMillis;
         
-        if (!success) {
-            adsTransientError = true;
-            Serial.println("ADS1115 transient error");
-            
-            // Обработка фатальной ошибки при третьем считывании
-            if (read_count == 2) {
-                adsFatalError = true;
-                Serial.println("Fatal ADS1115 error during base value setting!");
-                
-                // Отправка фатальной ошибки
-                if (deviceConnected) {
-                    pTempCharacteristic->setValue("Fatal error");
-                    pTempCharacteristic->notify();
-                    Serial.println("Sent Fatal Error: ADS1115 during calibration");
-                }
-            }
-            // Отправка временной ошибки при обычном считывании
-            else if (read_count >= 3 && deviceConnected) {
-                pTempCharacteristic->setValue("Error");
+        // Если датчик не найден при старте, сразу отправляем ошибку
+        if (!ds18b20Found) {
+            if (deviceConnected) {
+                pTempCharacteristic->setValue("Error sensor");
                 pTempCharacteristic->notify();
-                Serial.println("Sent Transient Error: ADS1115");
+                Serial.println("Sent Error sensor: DS18B20 not found");
             }
-        } 
-        else {
-            adsTransientError = false;
-            Serial.print("Channel 1 ADC raw: ");
-            Serial.println(adc_value);
+            return;
+        }
+        
+        float temperature = readDS18B20Temperature();
+        
+        if (temperature != -999.9) { // Успешное чтение
+            String tempString = formatTemperature(temperature);
 
-            if (read_count < 2) {
-                read_count++;
-                Serial.print("Skipped measurement ");
-                Serial.println(read_count);
-            } 
-            else if (read_count == 2) {
-                base_value = adc_value;
-                read_count++;
-                Serial.print("Base value set: ");
-                Serial.println(base_value);
-            } 
-            else {
-                // Применение калибровочного коэффициента
-                float pressure = (adc_value - base_value) * 0.001 * CALIBRATION_FACTOR;
-                char txString[12];
-                
-                // Форматирование с учетом отрицательных значений
-                if (pressure < 0) {
-                    snprintf(txString, sizeof(txString), "-%05.3f Bar", -pressure);
-                } else {
-                    snprintf(txString, sizeof(txString), " %05.3f Bar", pressure);
-                }
-
-                // Отправка только при подключении
-                if (deviceConnected) {
-                    pTempCharacteristic->setValue(txString);
-                    pTempCharacteristic->notify();
-                    Serial.print("Pressure: ");
-                    Serial.print(txString);
-                    Serial.print(" (Calib: ");
-                    Serial.print(CALIBRATION_FACTOR, 5);
-                    Serial.println(")");
-                }
+            // Отправка только при подключении
+            if (deviceConnected) {
+                pTempCharacteristic->setValue(tempString.c_str());
+                pTempCharacteristic->notify();
+                Serial.print("Temperature: ");
+                Serial.println(tempString);
+            }
+        } else {
+            // Ошибка чтения датчика - отправляем "Error sensor"
+            if (deviceConnected) {
+                pTempCharacteristic->setValue("Error sensor");
+                pTempCharacteristic->notify();
+                Serial.println("Sent Error sensor: DS18B20 connection problem");
             }
         }
     }

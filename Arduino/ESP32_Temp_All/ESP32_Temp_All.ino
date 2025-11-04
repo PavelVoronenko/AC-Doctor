@@ -231,7 +231,7 @@ void setup() {
     }
 
     // Инициализация BLE
-    BLEDevice::init("ESP32-C3-Temperature");
+    BLEDevice::init("ESP32-Temp-All");
     
     // Создание BLE сервера
     pServer = BLEDevice::createServer();
@@ -334,7 +334,7 @@ void loop() {
     }
 
     // Считывание второго канала (напряжение батареи) каждые 5 секунд
-    if (currentMillis - lastSecondChannelRead >= 5000) {
+    if (currentMillis - lastSecondChannelRead >= 1000) {
         lastSecondChannelRead = currentMillis;
         
         int16_t second_channel_value;
