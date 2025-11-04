@@ -18,7 +18,6 @@ class BleRepository(private val bleManager: BleManager) {
     val connectedDevices = _connectedDevices
 
     private val deviceInfoMap = ConcurrentHashMap<String, ConnectedDevice>()
-
     private val scanAndConnectDisposable = CompositeDisposable()
     var onConnectionProcessFinished: ((countDevices: Int) -> Unit)? = null
 
@@ -27,7 +26,13 @@ class BleRepository(private val bleManager: BleManager) {
         _connectedDevices.postValue(emptyList())
         deviceInfoMap.clear()
         scanAndConnectDisposable.clear()
-        connectToAllCompatibleDevices(maxDevices)
+
+        Observable.timer(100, TimeUnit.MILLISECONDS, Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                connectToAllCompatibleDevices(maxDevices)
+            }
+            .let { scanAndConnectDisposable.add(it) }
     }
 
     fun disconnectAll() {
