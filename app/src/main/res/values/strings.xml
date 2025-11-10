@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AC Doctor</string>
+    <string name="app_name">AC Diagnostic</string>
     <string name="connect">Connect</string>
     <string name="no_devices">No devices connected</string>
     <string name="icon">Icon</string>

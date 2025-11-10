@@ -18,32 +18,32 @@ class CardManager(
         configureCard(
             cardViews[0],
             R.drawable.pressure_high,
-            "High Pressure",
+            "Press High",
             R.drawable.bg_icon_circle_red
         )
         configureCard(
             cardViews[1],
             R.drawable.pressure_low,
-            "Low Pressure",
+            "Press Low",
             R.drawable.bg_icon_circle_blue
         )
         configureCard(
             cardViews[2],
-            R.drawable.term_high,
-            "High Temp",
-            R.drawable.bg_icon_circle_green
+            R.drawable.term_all,
+            "Temp High",
+            R.drawable.bg_icon_circle_red
         )
         configureCard(
             cardViews[3],
-            R.drawable.term_low,
-            "Low Temp",
-            R.drawable.bg_icon_circle_orange
+            R.drawable.term_all,
+            "Temp Low",
+            R.drawable.bg_icon_circle_blue
         )
         configureCard(
             cardViews[4],
             R.drawable.term_all,
-            "All Temp",
-            R.drawable.bg_icon_circle_purple
+            "Temp Air",
+            R.drawable.bg_icon_circle_green
         )
     }
 
