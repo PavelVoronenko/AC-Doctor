@@ -17,13 +17,13 @@ class CardManager(
     init {
         configureCard(
             cardViews[0],
-            R.drawable.pressure_high,
+            R.drawable.icon_pressure,
             "Press High",
             R.drawable.bg_icon_circle_red
         )
         configureCard(
             cardViews[1],
-            R.drawable.pressure_low,
+            R.drawable.icon_pressure,
             "Press Low",
             R.drawable.bg_icon_circle_blue
         )
